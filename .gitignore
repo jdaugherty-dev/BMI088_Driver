@@ -1,3 +1,4 @@
+build/
 bmi088_test
 *.o
 __pycache__/

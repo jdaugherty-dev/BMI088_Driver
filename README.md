@@ -37,7 +37,7 @@ sit on the Pi's UART TXD/RXD pins, which matters if you ever wire them up
 ```bash
 sudo raspi-config   # Interface Options -> SPI -> Enable
 sudo apt update
-sudo apt install -y gpiod libgpiod-dev
+sudo apt install -y cmake build-essential gpiod libgpiod-dev
 ```
 
 Reboot (or at least re-login) after enabling SPI so `/dev/spidev0.0` shows up.
@@ -53,8 +53,9 @@ it under version control), then:
 
 ```bash
 cd rpi_driver
-make
-sudo ./bmi088_test
+cmake -B build
+cmake --build build
+sudo ./build/bmi088_test
 ```
 
 Expected output on success:
@@ -96,7 +97,7 @@ python imu_viewer.py --port 5005
 On the Pi, point it at your dev machine's IP:
 
 ```bash
-./bmi088_test 192.168.1.42 5005
+./build/bmi088_test 192.168.1.42 5005
 ```
 
 (`192.168.1.42` is wherever `imu_viewer.py` is running — find it with
