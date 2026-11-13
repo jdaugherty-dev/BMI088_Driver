@@ -1,0 +1,4 @@
+bmi088_test
+*.o
+__pycache__/
+*.pyc
