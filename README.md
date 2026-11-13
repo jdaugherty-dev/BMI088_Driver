@@ -75,6 +75,51 @@ schematic).
 
 Ctrl+C to stop; the gpiod line request and spidev fd get released on exit.
 
+## Troubleshooting: `bmi08xa_init failed: -3`
+
+`-3` is `BMI08_E_DEV_NOT_FOUND`. `bmi08xa_init()` read the accel's chip-ID
+register over SPI and didn't get back `0x1E` -- this is a communication
+failure, not a code path you can fix by changing settings in `main.c`. The
+spidev/gpiod setup succeeding (you got this far instead of a
+`platform init failed`/`perror` message) just means the Pi side opened the
+bus and requested the GPIO lines fine; it says nothing about whether the
+chip on the other end is actually answering.
+
+Build and run the raw diagnostic, which reads the chip-ID register directly
+and prints the actual byte instead of just pass/fail:
+
+```bash
+cmake --build build
+sudo ./build/spi_diag
+```
+
+What the output means:
+
+| Result | Likely cause |
+|---|---|
+| `0x1E` (accel) / `0x0F` (gyro) | that die is fine -- if only one side fails, focus wiring checks on that side's CS line only |
+| `0x00` | MISO stuck low: no response at all from that CS. Check 3.3V is actually present at VDD/VDDIO *at the chip* (not just at the header), and that die's CS line actually reaches the chip |
+| `0xFF` | MISO floating/open: SCK/MOSI/CS are probably not making contact, or MISO itself isn't connected |
+| anything else, nonzero | something is answering, just not with the right ID -- check for CS1/CS2 swapped, or SCK/MOSI/MISO swapped |
+
+Given this is a hand-soldered QFN breakout, roughly in order of likelihood:
+
+1. **Cold/bridged solder joints on the QFN.** By far the most common cause
+   for a first bring-up of a fine-pitch hand-soldered part. Reflow/reflow-check
+   the accel and gyro CS pins (14 and 5), SCK/MOSI/MISO (8/9/10 and 15), and
+   VDD/VDDIO/GND pins especially.
+2. **Header not fully/correctly seated**, or off-by-one-row on the 40-pin
+   header (check pin-1 alignment against the silkscreen).
+3. **PS pin not actually grounded** on the physical board (it's correct in
+   the schematic/netlist, but that doesn't guarantee the trace/joint is good).
+4. **CS1/CS2 swapped** at the header-to-breadboard/jumper stage, if you're
+   not going directly header-to-header.
+5. **SPI not actually enabled**, or wrong `/dev/spidev*` device -- confirm
+   with `ls /dev/spidev*` (should show `/dev/spidev0.0`).
+6. **GPIO23/24 already claimed by something else** (another overlay, or a
+   leftover process) -- `gpioinfo gpiochip0` lists every line's consumer;
+   lines 23 and 24 should show as unused when nothing's running.
+
 ## Live 3D viewer
 
 `viewer/imu_viewer.py` is a small cross-platform (run it on your dev machine,
